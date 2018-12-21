@@ -1,0 +1,175 @@
+---
+title: "Birthdays: Probability, Statistics and Data Visualisation"
+author: "Zak Varty"
+date: "Spring 2019"
+output: 
+  ioslides_presentation:
+    incremental: true
+    widescreen: true 
+    logo: lancaster_black1.png
+    runtime: shiny 
+---  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Questions:
+
+ - What is the probability that two or more people in this room share a birthday?
+
+<center>
+
+![](lancaster_black1.png)
+
+</center>
+ - What assumptions are you making to arrive at your answer? 
+
+
+## Typical Assumptions
+
+- No twins, triplets, etc.  (birth dates are independent)
+- All days are equally probable. 
+- There are 365 days in the year. (Not always true)  
+- $$ \begin{align} \text{Pr}(n \text{  distinct birthdays}) &= \frac{365}{365} \times \frac{364}{365} \times \dots \times \frac{365 - (n -1)}{365} \\ 
+& \\
+&= \prod_{i=0}^{n-1} \left\{\frac{365-i}{365}\right\}. \end{align}$$
+- Pr(Shared birthday) = 1 - Pr($n$ distinct birthdays).  
+
+## Plotting this Solution
+<div class="centered">
+```{r}
+n<- 40
+N <- seq(1:n)
+pr <- rep(NA,n)
+for(i in N){
+  pr[i] <- prod((365: (365-(i-1)))/365)
+}
+plot(x = N,y = pr,type = 'h', ylab = 'Pr( n distinct birthdays )')
+```
+</div>
+
+## Plotting this Solution
+```{r}
+library(shiny)
+
+# Define UI for app that draws the pmf ----
+ui <- fluidPage(
+
+  # App title ----
+  titlePanel(""),
+
+  # Sidebar layout with input and output definitions ----
+  sidebarLayout(
+
+    # Sidebar panel for inputs ----
+    sidebarPanel(
+
+      # Input: Slider for the number of bins ----
+      sliderInput(inputId = "students",
+                  label = "Number of students:",
+                  min = 1,
+                  max = 70,
+                  value = 30)
+
+    ),
+
+    # Main panel for displaying outputs ----
+    mainPanel(
+
+      # Output: Histogram ----
+      plotOutput(outputId = "probPlot")
+
+    )
+  )
+)
+```
+
+```{r}
+# Define server logic required to draw a histogram ----
+server <- function(input, output) {
+
+  # pmf of sharing birthdays ----
+  # with requested number of students highlighted and probability as main
+  # This expression that generates the pmf is wrapped in a call
+  # to renderPlot to indicate that:
+  #
+  # 1. It is "reactive" and therefore should be automatically
+  #    re-executed when inputs (input$students) change
+  # 2. Its output type is a plot
+  output$probPlot <- renderPlot({
+
+    x    <- 1:100 
+    pr <- rep(NA,100)
+    for(i in 1:100){
+      pr[i] <- prod((365: (365-(i-1)))/365)
+    }
+    col <- rep(1,100)
+    col[input$students] <- 2
+    
+    plot(x = x,
+         y = 1- pr,
+         type = 'h',
+         ylab = 'Pr( shared birthday )',
+         col = col,
+         main = paste(1- pr[input$students]))
+
+  }
+ )
+}
+```
+
+```{r}
+shinyApp(
+  ui = ui,
+  server = server,
+  options = list(height = 500)
+)
+```
+<!-- <div class="centered"> -->
+<!-- ```{r} -->
+<!-- n<- 40 -->
+<!-- N <- seq(1:n) -->
+<!-- pr <- rep(NA,n) -->
+<!-- for(i in N){ -->
+<!--   pr[i] <- prod((365: (365-(i-1)))/365) -->
+<!-- } -->
+<!-- plot(x = N,y = 1- pr,type = 'h', ylab = 'Pr( shared birthday )') -->
+<!-- ``` -->
+<!-- </div> -->
+
+## Are all days really equally likely?
+
+```{r load birth data}
+library(readxl)
+birthsbydate <- read_excel("birthsbydate1995to2016.xls", 
+    sheet = "Data", na = "z", skip = 4, n_max = 366)
+birthsbydate <- apply(X = birthsbydate,MARGIN = 2,FUN = as.integer)
+```
+
+```{r dail birth data}
+birthsdaily <- apply(X = birthsbydate, MARGIN = 1,FUN = sum, na.rm= TRUE)
+```
+
+## A different view of the same data
+
+```{r pressure}
+plot(pressure)
+```
+
+## Testing for equiprobability 
+
+
+## Day of week effect 
+
+## Disagregating the data 
+
+## Are there lagged effects? 
+
+## A model for births 
+
+## An alternative model 
+
+## What I study 
+
+## Take aways 
