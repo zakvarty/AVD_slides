@@ -180,25 +180,67 @@ birthsbyday <- birthsbyday %>%
   dplyr::mutate(occurs =  occurances) %>%
   dplyr::mutate(rel_count = total/occurs)
 
+
 ggplot2::ggplot(data = birthsbyday, 
                 ggplot2::aes(x= day, 
                              y= month,
                              fill= rel_count)) + 
   ggplot2::geom_tile() + 
-  ggplot2::ggtitle("UK births by day of year: Relative count 1995-2016") +
-  ggplot2::scale_fill_gradient(low="black", high="red") 
-
-
+  ggplot2::ggtitle("UK births by day of year: Adjusted Mean Count 1995-2016") +
+  ggplot2::scale_fill_gradient(low="black", high="red") + 
+  ggplot2::labs(fill = "Mean \n Count")
 ```
 
 ## A different view of the same data
+```{r A different view, fig.align="center"}
 
-```{r A different view}
+birthsbydate <- dplyr::mutate(.data = birthsbydate, doy = 1:366)
+birthsbyday <- dplyr::mutate(.data = birthsbyday, doy = 1:366)
 
+ggplot2::ggplot(data = birthsbyday) +
+  ggplot2::geom_line(mapping = ggplot2::aes(x = doy,y = rel_count)) + 
+  ggplot2::ylab("mean birth count") + 
+  ggplot2::xlab("day of year")
 ```
 
-## Testing for equiprobability 
+## Handling holidays 
 
+- Only emergency treatments on Christmas, Boxing day and New Years Day. 
+- Treat these days separately. (Skip over hypothesis tests here) 
+
+- $$\widehat p = \frac{\text{relative count}}{\text{total relative count}}$$ $$ \widehat{p}_{01/01} = 0.00237 \approx \frac{1}{421}$$
+$$ \widehat{p}_{25/12} = 0.00214 \approx \frac{1}{467}$$
+$$ \widehat{p}_{26/12} = 0.00204 \approx \frac{1}{490}$$
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=TRUE}
+nyd <- which(birthsbyday$month == '01'& birthsbyday$day =='01')
+boxday <- which(birthsbyday$month == '12'& birthsbyday$day =='26')
+xmas <- which(birthsbyday$month == '12'& birthsbyday$day =='25')
+leap <- which(birthsbyday$month == '02'& birthsbyday$day =='29')
+phat <- function(dayofyear){
+  birthsbyday$rel_count[dayofyear] / sum(birthsbyday$rel_count)
+} 
+phat(c( xmas, boxday, nyd))
+1/phat(c( xmas, boxday, nyd))
+```
+
+
+## How about the other days? 
+```{r message=FALSE, warning=FALSE, fig.align="center"}
+non_hols <- birthsbyday 
+non_hols$rel_count[c( xmas, boxday, nyd)] <- NA
+ggplot2::ggplot(data = non_hols) +
+  ggplot2::geom_line(mapping = ggplot2::aes(x = doy,y = rel_count)) + 
+  ggplot2::ylab("mean birth count") + 
+  ggplot2::xlab("day of year")
+```
+
+## Bootstrap test
+$$ H_0: \text{all days have same expected count, up to occurance.}$$
+$$vs.$$
+$$H_1: \text{At least one day has a different count, up to occurance.}$$
+- under $H_0$ the observed counts could have happened on any day
+- If H_0 is correct then we can pick any 22 of the daily counts for any of the days.
+- Doing this repeatedly 
 
 ## Day of week effect 
 
