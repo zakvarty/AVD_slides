@@ -112,8 +112,8 @@ server <- function(input, output) {
          type = 'h',
          ylab = 'Pr( shared birthday )',
          col = col,
-         main = paste(1- pr[input$students]))
-
+         main = paste(round(1- pr[input$students], digits = 8)),
+         lwd = 4)
   }
  )
 }
@@ -126,17 +126,7 @@ shinyApp(
   options = list(height = 500)
 )
 ```
-<!-- <div class="centered"> -->
-<!-- ```{r} -->
-<!-- n<- 40 -->
-<!-- N <- seq(1:n) -->
-<!-- pr <- rep(NA,n) -->
-<!-- for(i in N){ -->
-<!--   pr[i] <- prod((365: (365-(i-1)))/365) -->
-<!-- } -->
-<!-- plot(x = N,y = 1- pr,type = 'h', ylab = 'Pr( shared birthday )') -->
-<!-- ``` -->
-<!-- </div> -->
+
 
 ## Are all days really equally likely?
 
@@ -144,17 +134,67 @@ shinyApp(
 library(readxl)
 birthsbydate <- read_excel("birthsbydate1995to2016.xls", 
     sheet = "Data", na = "z", skip = 4, n_max = 366)
-birthsbydate <- apply(X = birthsbydate,MARGIN = 2,FUN = as.integer)
 ```
 
-```{r dail birth data}
-birthsdaily <- apply(X = birthsbydate, MARGIN = 1,FUN = sum, na.rm= TRUE)
+
+```{r split Date into day and month}
+library('tidyr')
+birthsbydate <- birthsbydate %>%
+  separate(Date, into = c("day", "month"), sep = "/")
+```
+
+```{r}
+birthsbyday <- birthsbydate %>%
+  dplyr::mutate(total = rowSums(.[,-(1:2)],na.rm = TRUE)) %>%
+  dplyr::select(day,month,total) #%>%
+  # dplyr::mutate(day = as.integer(day)) %>%
+  # dplyr::mutate(month = as.integer(month)) $>$
+  # dplyr::mutate(total = as.integer(total))
+
+births_mat <- spread(data = birthsbyday,value = total,key = day)
+```
+
+```{r, fig.align="center"}
+
+birthsbyday <- birthsbyday %>% 
+  dplyr::mutate(sds = (total- mean(total,na.rm = TRUE))/sd(total,na.rm = TRUE)) %>%
+  dplyr::mutate(day = factor(day)) %>%
+  dplyr::mutate(month = factor(month)) %>% 
+  dplyr::mutate(month = factor(x = month, levels = rev(levels(month))))
+  
+
+ggplot2::ggplot(data = birthsbyday, 
+                ggplot2::aes(x= day, 
+                             y= month,
+                             fill= total)) + 
+  ggplot2::geom_tile() + 
+  ggplot2::ggtitle("UK births by day of year: Total Count 1995-2016") +
+  ggplot2::scale_fill_gradient(low="black", high="red") 
+```
+
+## Correcting for Feb 29
+```{r correcting for Feb29, fig.align="center"}
+occurances <- rep(22,366)
+occurances[31+29] <- 6 #number of leap years (1996,2000,...,2016).
+birthsbyday <- birthsbyday %>%
+  dplyr::mutate(occurs =  occurances) %>%
+  dplyr::mutate(rel_count = total/occurs)
+
+ggplot2::ggplot(data = birthsbyday, 
+                ggplot2::aes(x= day, 
+                             y= month,
+                             fill= rel_count)) + 
+  ggplot2::geom_tile() + 
+  ggplot2::ggtitle("UK births by day of year: Relative count 1995-2016") +
+  ggplot2::scale_fill_gradient(low="black", high="red") 
+
+
 ```
 
 ## A different view of the same data
 
-```{r pressure}
-plot(pressure)
+```{r A different view}
+
 ```
 
 ## Testing for equiprobability 
