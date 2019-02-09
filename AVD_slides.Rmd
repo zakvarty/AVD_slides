@@ -18,13 +18,11 @@ knitr::opts_chunk$set(echo = FALSE)
 
  - What is the probability that two or more people in this room share a birthday?
 
-<center>
 
-![](lancaster_black1.png)
-
-</center>
  - What assumptions are you making to arrive at your answer? 
-
+```{r, fig.align='center'}
+#countdown::countdown_timer(60)
+```
 
 ## Typical Assumptions
 
@@ -131,8 +129,8 @@ shinyApp(
 ## Are all days really equally likely?
 
 ```{r load birth data}
-library(readxl)
-birthsbydate <- read_excel("birthsbydate1995to2016.xls", 
+#library('readxl')
+birthsbydate <- readxl::read_excel("birthsbydate1995to2016.xls", 
     sheet = "Data", na = "z", skip = 4, n_max = 366)
 ```
 
@@ -203,6 +201,7 @@ ggplot2::ggplot(data = birthsbyday) +
   ggplot2::xlab("day of year")
 ```
 
+
 ## Handling holidays 
 
 - Only emergency treatments on Christmas, Boxing day and New Years Day. 
@@ -223,35 +222,116 @@ phat(c( xmas, boxday, nyd))
 1/phat(c( xmas, boxday, nyd))
 ```
 
+## What about the non-holidays?
+```{r warning=FALSE, fig.align="center"}
+non_hols_byday <- birthsbyday
+nyd <- which(birthsbyday$month == '01'& birthsbyday$day =='01')
+boxday <- which(birthsbyday$month == '12'& birthsbyday$day =='26')
+xmas <- which(birthsbyday$month == '12'& birthsbyday$day =='25')
+leap <- which(birthsbyday$month == '02'& birthsbyday$day =='29')
+hols <- c(nyd,boxday,xmas, leap)
+non_hols_byday[hols,c(3,4,6)]<- NA
 
-## How about the other days? 
+ggplot2::ggplot(data=non_hols_byday) + 
+  ggplot2::geom_line(mapping = ggplot2::aes(x = doy, y = rel_count)) +
+  ggplot2::xlab("day of year") + 
+  ggplot2::ylab("mean birth count")
+```
+
+## But we have all of this information 
 ```{r message=FALSE, warning=FALSE, fig.align="center"}
-non_hols <- birthsbyday 
-non_hols$rel_count[c( xmas, boxday, nyd)] <- NA
-ggplot2::ggplot(data = non_hols) +
-  ggplot2::geom_line(mapping = ggplot2::aes(x = doy,y = rel_count)) + 
-  ggplot2::ylab("mean birth count") + 
+non_hols <- birthsbydate 
+nyd <- which(non_hols$month == '01'& non_hols$day =='01')
+boxday <- which(non_hols$month == '12'& non_hols$day =='26')
+xmas <- which(non_hols$month == '12'& non_hols$day =='25')
+leap <- which(non_hols$month == '02'& non_hols$day =='29')
+hols <- c(nyd,boxday,xmas, leap)
+non_hols[hols,3:25] <- NA
+
+tidynon_hols <- gather(data = non_hols, key = year,value = births, `2016`:`1995`)
+ggplot2::ggplot(data = tidynon_hols) +
+  ggplot2::geom_point(mapping = ggplot2::aes(x = doy,y = births, col = year)) + 
+  ggplot2::ylab("birth count") + 
   ggplot2::xlab("day of year")
 ```
 
-## Bootstrap test
-$$ H_0: \text{all days have same expected count, up to occurance.}$$
+
+## What are we testing?
+
+
+$$ H_0: \text{all non-holidays have the same mean birth count.}$$
+
 $$vs.$$
-$$H_1: \text{At least one day has a different count, up to occurance.}$$
-- under $H_0$ the observed counts could have happened on any day
-- If H_0 is correct then we can pick any 22 of the daily counts for any of the days.
-- Doing this repeatedly 
 
-## Day of week effect 
+$$H_1: \text{At least one day has a different mean.}$$
 
-## Disagregating the data 
+## Bootstrap confidence interval - idea
+- Under $H_0$ and the observationd being i.i.d. the observed counts could have happened on any day
+- We can build another day that we have not observed based on our data
+- Build lots of these days and calculate the mean of each one
+- Use the quantiles of these e.g. $(\bar x_{0.025}, \bar x_{0.975})$ to construct a confidence interval.
 
-## Are there lagged effects? 
 
-## A model for births 
 
-## An alternative model 
+## Bootstrap confidence interval - procedure 
+- Sample 22 non holiday birth counts at random, with replacement.
+- Calculate their mean.
+- Add this to a vector of means. 
+- Repeat until we have 10,000 means. 
+- Calculate the desired quantiles of the mean vector. 
+- Compare to observations. 
 
-## What I study 
+## Bootstrap confidence interval - code
+```{r echo=TRUE}
+boot_data <- as.vector(as.matrix(non_hols[,3:24]))
+boot_sample <- rep(NA,22)
 
-## Take aways 
+boot_size <- 1e5
+boot_means  <- rep(NA,boot_size) 
+
+for(i in 1:boot_size){
+  boot_sample <- sample(boot_data, size = 22, replace = TRUE)
+  boot_means[i] <- mean(boot_sample,na.rm = TRUE)
+}
+
+boot_CI <- quantile(boot_means, probs = c(0.025,0.975))
+boot_CI
+```
+
+## Bootstrap confidence interval - results
+
+```{r warning=FALSE, fig.align="center"}
+non_hols_byday <- birthsbyday
+nyd <- which(birthsbyday$month == '01'& birthsbyday$day =='01')
+boxday <- which(birthsbyday$month == '12'& birthsbyday$day =='26')
+xmas <- which(birthsbyday$month == '12'& birthsbyday$day =='25')
+leap <- which(birthsbyday$month == '02'& birthsbyday$day =='29')
+hols <- c(nyd,boxday,xmas, leap)
+non_hols_byday[hols,c(3,4,6)]<- NA
+
+ggplot2::ggplot(data=non_hols_byday) + 
+  ggplot2::geom_line(mapping = ggplot2::aes(x = doy, y = rel_count)) +
+  ggplot2::xlab("day of year") + 
+  ggplot2::ylab("mean birth count") + 
+  ggplot2::geom_hline(yintercept = boot_CI, linetype = 'dashed', color = 'red')
+```
+
+## Other questions
+
+- Is there dependence on the previous count(s)?
+- Is there an effect from the day of week?
+- Is there an trend over time?
+- If you want to learn more: https://pudding.cool/2018/04/birthday-paradox/
+
+
+## Takeaways
+- Statistics is about understanding the assumptions. 
+- The more assumptions you make the more you can conclude.
+- Display choices impact what is seen and what is hidden. 
+- A statistician's work is never done. 
+
+
+## Thank you 
+Any quick questions?
+
+(I'll be around at coffee for longer ones!)
